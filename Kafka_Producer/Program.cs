@@ -21,7 +21,7 @@ try
             await producer.ProduceAsync("testTopic", new Message<string, int> { Key = "testKey", Value = i }/*, Handler*/);
             Console.WriteLine(i);
             i++;
-            Thread.Sleep(10);
+            Thread.Sleep(10); //without it the queue got full, somewhow, after a while and the software crashed (sued procuider.Produce) at that time
         }
         producer.Flush(TimeSpan.FromSeconds(10));
     }
