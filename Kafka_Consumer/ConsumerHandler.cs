@@ -2,19 +2,22 @@
 using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
+using Serilog;
+using Shared;
 using System.Text.Json;
 
 namespace Kafka_Consumer;
 
-internal class ConsumerHandler<T>
+internal class ConsumerHandler<T> 
 {
     private readonly string _topic;
     private readonly SchemaRegistryConfig _schemaRegistryConfig;
     private readonly ConsumerConfig _consumerConfig;
     private readonly AvroDeserializerConfig _serialiserConfig;
+    private readonly ILogger _logger;
 
     private readonly Action<T> _action;
-    public ConsumerHandler(string topic, Action<T> handle)
+    public ConsumerHandler(string topic, Action<T> handle, ILogger logger)
     {
         _topic = topic;
         _schemaRegistryConfig = new SchemaRegistryConfig
@@ -24,11 +27,13 @@ internal class ConsumerHandler<T>
         _consumerConfig = new ConsumerConfig
         {
             GroupId = Guid.NewGuid().ToString(),
-            BootstrapServers = "locahlhost:9092",
-            AutoOffsetReset = AutoOffsetReset.Latest
+            BootstrapServers = "localhost:9092",
+            AutoOffsetReset = AutoOffsetReset.Latest,
+            //AllowAutoCreateTopics = true,
         };
         _serialiserConfig = new();
         _action = handle;
+        _logger = logger;
     }
 
     public void Consume(CancellationTokenSource cts)
@@ -42,5 +47,6 @@ internal class ConsumerHandler<T>
             var carrier = cr.Message.Value; // TODO: try catch
             _action.Invoke(JsonSerializer.Deserialize<T>(carrier.Data)!);
         }
+        consumer.Close();
     }
 }

@@ -1,8 +1,9 @@
 ﻿using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
+using Serilog;
 
-namespace Kafka_Producer;
+namespace Shared;
 
 internal class ProducerHandler<T>
 {
@@ -10,8 +11,9 @@ internal class ProducerHandler<T>
     private readonly SchemaRegistryConfig _schemaRegistryConfig;
     private readonly ProducerConfig _producerConfig;
     private readonly AvroSerializerConfig _serialiserConfig;
-    
-    public ProducerHandler(string topic)
+    private readonly ILogger _logger;
+
+    public ProducerHandler(string topic, ILogger logger)
     {
         _topic = topic;
         _schemaRegistryConfig = new SchemaRegistryConfig
@@ -20,12 +22,13 @@ internal class ProducerHandler<T>
         };
         _producerConfig = new ProducerConfig
         {
-            BootstrapServers = "locahlhost:9092",
+            BootstrapServers = "localhost:9092",
         };
         _serialiserConfig = new();
+        _logger = logger;
     }
 
-    public async Task ProduceProduce(T @event)
+    public async Task ProduceAsync(T @event)
     {
         using var schemaRegistry = new CachedSchemaRegistryClient(_schemaRegistryConfig);
         using var producer = new ProducerBuilder<Null, Carrier>(_producerConfig).SetValueSerializer(new AvroSerializer<Carrier>(schemaRegistry, _serialiserConfig)).Build();

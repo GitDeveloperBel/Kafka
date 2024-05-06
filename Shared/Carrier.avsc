@@ -1,0 +1,9 @@
+{
+	"namespace": "Shared",
+	"type": "record",
+	"doc": "carrier",
+	"name": "Carrier",
+	"fields":[
+		{"name": "Data", type: "string"}
+	]
+}
