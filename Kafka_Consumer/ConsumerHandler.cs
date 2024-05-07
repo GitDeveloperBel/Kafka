@@ -39,7 +39,7 @@ internal class ConsumerHandler<T>
     public void Consume(CancellationTokenSource cts)
     {
         using var schemaRegistry = new CachedSchemaRegistryClient(_schemaRegistryConfig);
-        using var consumer = new ConsumerBuilder<Null, Carrier>(_consumerConfig).SetValueDeserializer(new AvroDeserializer<Carrier>(schemaRegistry).AsSyncOverAsync()).Build();
+        using var consumer = new ConsumerBuilder<Null, Carrier>(_consumerConfig).SetValueDeserializer(new AvroDeserializer<Carrier>(schemaRegistry, _serialiserConfig).AsSyncOverAsync()).Build();
         consumer.Subscribe(_topic);
         while (true)
         {
