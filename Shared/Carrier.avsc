@@ -4,6 +4,9 @@
 	"doc": "carrier",
 	"name": "Carrier",
 	"fields":[
-		{"name": "Data", type: "string"}
+		{
+			"name": "Data",
+			"type": "string"
+		}
 	]
 }

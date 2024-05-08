@@ -10,13 +10,13 @@ namespace Kafka_Consumer;
 
 internal class ConsumerHandler<T> 
 {
-    private readonly string _topic;
-    private readonly SchemaRegistryConfig _schemaRegistryConfig;
-    private readonly ConsumerConfig _consumerConfig;
-    private readonly AvroDeserializerConfig _serialiserConfig;
-    private readonly ILogger _logger;
+    protected readonly string _topic;
+    protected readonly SchemaRegistryConfig _schemaRegistryConfig;
+    protected readonly ConsumerConfig _consumerConfig;
+    protected readonly AvroDeserializerConfig _serialiserConfig;
+    protected readonly ILogger _logger;
 
-    private readonly Action<T> _action;
+    protected readonly Action<T> _action;
     public ConsumerHandler(string topic, Action<T> handle, ILogger logger)
     {
         _topic = topic;
@@ -36,7 +36,7 @@ internal class ConsumerHandler<T>
         _logger = logger;
     }
 
-    public void Consume(CancellationTokenSource cts)
+    public void ConsumeCarrier(CancellationTokenSource cts)
     {
         using var schemaRegistry = new CachedSchemaRegistryClient(_schemaRegistryConfig);
         using var consumer = new ConsumerBuilder<Null, Carrier>(_consumerConfig).SetValueDeserializer(new AvroDeserializer<Carrier>(schemaRegistry, _serialiserConfig).AsSyncOverAsync()).Build();
@@ -46,6 +46,28 @@ internal class ConsumerHandler<T>
             var cr = consumer.Consume(cts.Token);
             var carrier = cr.Message.Value; // TODO: try catch
             _action.Invoke(JsonSerializer.Deserialize<T>(carrier.Data)!);
+        }
+        consumer.Close();
+    }
+}
+
+
+internal class DishConsumerHandler : ConsumerHandler<Dish>
+{
+    public DishConsumerHandler(string topic, Action<Dish> handle, ILogger logger) : base(topic, handle, logger)
+    {
+    }
+
+    public void Consume(CancellationTokenSource cts)
+    {
+        using var schemaRegistry = new CachedSchemaRegistryClient(_schemaRegistryConfig);
+        using var consumer = new ConsumerBuilder<Null, Dish>(_consumerConfig).SetValueDeserializer(new AvroDeserializer<Dish>(schemaRegistry, _serialiserConfig).AsSyncOverAsync()).Build();
+        consumer.Subscribe(_topic);
+        while (true)
+        {
+            var cr = consumer.Consume(cts.Token);
+            var dish = cr.Message.Value; // TODO: try catch
+            _action.Invoke(dish);
         }
         consumer.Close();
     }

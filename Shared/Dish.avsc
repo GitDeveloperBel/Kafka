@@ -1,0 +1,20 @@
+{
+	"namespace": "Shared",
+	"type": "record",
+	"doc": "dish info",
+	"name": "Dish",
+	"fields":[
+		{
+			"name": "Id",
+			"type": "string"
+		},
+		{
+			"name": "AmountOfEggs",
+			"type": "int"
+		},
+		{
+			"name": "AmountOfBread",
+			"type": "int"
+		}
+	]
+}

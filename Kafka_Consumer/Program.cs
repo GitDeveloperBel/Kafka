@@ -42,13 +42,17 @@ void CurrentDomain_ProcessExit(object? sender, EventArgs e)
 }
 //seems like if a consumer is not closed, the Kafka broker will attempt to contact it? for a minute, before discarding it. If starting a new consumer before then, Kafka will not transmit message until to then.
 
-
+object lockObject = new();
+int eggs = 5;
+int breads = 31;
 var topic = Topics.TOPIC_ORDER;
-Thread.Sleep(1000);
+Thread.Sleep(2000);
 Thread t1 = new(ThreadStarter1);
 Thread t2 = new(ThreadStarter2);
+Thread t3 = new(ThreadStarter3);
 t1.Start();
 t2.Start();
+t3.Start();
 
 while (true)
     Thread.Sleep(TimeSpan.FromHours(4));
@@ -57,22 +61,46 @@ while (true)
 void ThreadStarter1()
 {
     var consumeHandler = new ConsumerHandler<Order>(topic, Handler1, logger);
-    consumeHandler.Consume(new CancellationTokenSource());
+    consumeHandler.ConsumeCarrier(new CancellationTokenSource());
 }
 
 void ThreadStarter2()
 {
     var consumeHandler = new ConsumerHandler<Order>(topic, Handler2, logger);
-    consumeHandler.Consume(new CancellationTokenSource());
+    consumeHandler.ConsumeCarrier(new CancellationTokenSource());
+}
+
+void ThreadStarter3()
+{
+    var consumerHandler = new DishConsumerHandler(Topics.TOPIC_DISH, Handler3, logger);
+    consumerHandler.Consume(new CancellationTokenSource());
 }
 
 void Handler1(Order order)
 {
-    logger.Information("Order {@order} saved to database", order);
+    logger.Information("Placed order {@order} saved to database", order);
 }
 
 void Handler2(Order order)
 {
-    logger.Information("Something different to do with {Order}", order.Id);
+    logger.Information("Something different to do with {Order} for {Customer}", order.Id, order.CustomerId);
 }
 
+void Handler3(Dish dish)
+{
+    lock (lockObject)
+    {
+        eggs -= dish.AmountOfEggs;
+        breads -= dish.AmountOfBread;
+    }
+    logger.Information("Dish part of ordered menu requires {Breads} and {Eggs}", dish.AmountOfBread, dish.AmountOfEggs);
+    if(eggs < 0)
+    {
+        logger.Warning("Missing {MissingEgg} eggs", eggs);
+    }
+    if (breads < 0)
+    {
+        logger.Warning("Missing {MissingBreads} breads", breads);
+    }
+
+}

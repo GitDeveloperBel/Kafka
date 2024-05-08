@@ -45,14 +45,46 @@ using Shared;
 //}
 
 
-var topic = Topics.TOPIC_ORDER;
 var logger = SeriloggerService.GenerateLogger();
-var producerHandler = new ProducerHandler<Order>(topic, logger);
-for(int i = 0; i < 10000; i++)
+
+Thread t1 = new(ThreadStarter1);
+Thread t2 = new(ThreadStarter2);
+t1.Start();
+t2.Start();
+
+void ThreadStarter1()
 {
-    var order = GenerateRandomOrder();
-    await producerHandler.ProduceAsync(order);
-    logger.Debug("Order {@Order} transmitted", order);
+    var topic = Topics.TOPIC_ORDER;
+    var producerHandler = new ProducerHandler<Order>(topic, logger);
+    for (int i = 0; i < 10000; i++)
+    {
+        var order = GenerateRandomOrder();
+        var t = producerHandler.ProduceCarrierAsync(order);
+        t.Wait();
+        logger.Debug("Order {@Order} transmitted", order);
+    }
+}
+
+
+void ThreadStarter2()
+{
+    var dishes = new Dish[]
+    {
+        new(Guid.NewGuid(), 10, 0),
+        new(Guid.NewGuid(), 1, 1),
+        new(Guid.NewGuid(), 0, 5),
+        new(Guid.NewGuid(), 3, 2),
+    };
+    var topic = Topics.TOPIC_DISH;
+    var producerHandler = new DishProducerHandler(topic, logger);
+    for (int i = 0; i < 10000; i++)
+    {
+        var idx = Random.Shared.Next(0, dishes.Length);
+        var dish = dishes[idx];
+        var t = producerHandler.ProduceAsync(dish);
+        t.Wait();
+        logger.Debug("Dish {@Dish} transmitted", dish);
+    }
 }
 
 static Order GenerateRandomOrder()
