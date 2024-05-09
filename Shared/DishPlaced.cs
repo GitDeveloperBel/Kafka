@@ -3,7 +3,7 @@ using Avro.Specific;
 
 namespace Shared;
 
-public class Dish : ISpecificRecord
+public class DishPlaced : ISpecificRecord
 {
     public Guid Id { get; set; }
     public int AmountOfEggs { get; set; }
@@ -11,12 +11,12 @@ public class Dish : ISpecificRecord
 
     public Schema Schema => Schema.Parse(File.ReadAllText("Dish.avsc"));
 
-    public Dish()
+    public DishPlaced()
     {
         
     }
 
-    public Dish(Guid id, int amountOfEggs, int amountOfBread)
+    public DishPlaced(Guid id, int amountOfEggs, int amountOfBread)
     {
         Id = id;
         AmountOfEggs = amountOfEggs;

@@ -1,6 +1,6 @@
 ﻿namespace Shared;
 
-public class Order
+public class OrderPlaced
 {
     public Guid Id { get; set; }
     public string Name { get; set; }

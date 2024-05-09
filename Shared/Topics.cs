@@ -2,6 +2,10 @@
 
 public static class Topics
 {
-    public const string TOPIC_ORDER = "order"; 
-    public const string TOPIC_DISH = "dish"; 
+#if !DEBUGPART
+    public const string TOPIC_ORDER = "orderPlaced"; 
+#else
+    public const string TOPIC_ORDER = "orderPlaced2";
+#endif
+    public const string TOPIC_DISH = "dishPlaced"; 
 }

@@ -52,14 +52,23 @@ Thread t2 = new(ThreadStarter2);
 t1.Start();
 t2.Start();
 
+//#if DEBUGPART
+//Thread t3 = new(ThreadStarter1);
+//t3.Start();
+//#endif
+
 void ThreadStarter1()
 {
     var topic = Topics.TOPIC_ORDER;
-    var producerHandler = new ProducerHandler<Order>(topic, logger);
+    var producerHandler = new ProducerHandler<OrderPlaced>(topic, logger);
     for (int i = 0; i < 10000; i++)
     {
         var order = GenerateRandomOrder();
-        var t = producerHandler.ProduceCarrierAsync(order);
+
+        string key = i % 2 == 0 ? "key1" : "key2";
+        var partId = i % 2;
+        var tp = new TopicPartition(topic, new(partId));
+        var t = producerHandler.ProduceCarrierAsync(order, key, tp);
         t.Wait();
         logger.Debug("Order {@Order} transmitted", order);
     }
@@ -68,7 +77,7 @@ void ThreadStarter1()
 
 void ThreadStarter2()
 {
-    var dishes = new Dish[]
+    var dishes = new DishPlaced[]
     {
         new(Guid.NewGuid(), 10, 0),
         new(Guid.NewGuid(), 1, 1),
@@ -87,10 +96,10 @@ void ThreadStarter2()
     }
 }
 
-static Order GenerateRandomOrder()
+static OrderPlaced GenerateRandomOrder()
 {
     var orderIds = new (Guid, string)[] { (Guid.NewGuid(), "Menu1"), (Guid.NewGuid(), "Menu2"), (Guid.NewGuid(), "Menu3"), };
     var idx = Random.Shared.Next(0, orderIds.Length);
     var order = orderIds[idx];
-    return new Order { CustomerId = Guid.NewGuid(), Id = order.Item1, Name = order.Item2 };
+    return new OrderPlaced { CustomerId = Guid.NewGuid(), Id = order.Item1, Name = order.Item2 };
 }

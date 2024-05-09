@@ -17,7 +17,7 @@ internal class ConsumerHandler<T>
     protected readonly ILogger _logger;
 
     protected readonly Action<T> _action;
-    public ConsumerHandler(string topic, Action<T> handle, ILogger logger)
+    public ConsumerHandler(string topic, Action<T> handle, ILogger logger, string groupId)
     {
         _topic = topic;
         _schemaRegistryConfig = new SchemaRegistryConfig
@@ -26,10 +26,11 @@ internal class ConsumerHandler<T>
         };
         _consumerConfig = new ConsumerConfig
         {
-            GroupId = Guid.NewGuid().ToString(),
+            GroupId = groupId,
             BootstrapServers = "localhost:9092",
             AutoOffsetReset = AutoOffsetReset.Latest,
             //AllowAutoCreateTopics = true,
+            PartitionAssignmentStrategy = PartitionAssignmentStrategy.RoundRobin,
         };
         _serialiserConfig = new();
         _action = handle;
@@ -39,12 +40,13 @@ internal class ConsumerHandler<T>
     public void ConsumeCarrier(CancellationTokenSource cts)
     {
         using var schemaRegistry = new CachedSchemaRegistryClient(_schemaRegistryConfig);
-        using var consumer = new ConsumerBuilder<Null, Carrier>(_consumerConfig).SetValueDeserializer(new AvroDeserializer<Carrier>(schemaRegistry, _serialiserConfig).AsSyncOverAsync()).Build();
+        using var consumer = new ConsumerBuilder<string, Carrier>(_consumerConfig).SetValueDeserializer(new AvroDeserializer<Carrier>(schemaRegistry, _serialiserConfig).AsSyncOverAsync()).Build();
         consumer.Subscribe(_topic);
         while (true)
         {
             var cr = consumer.Consume(cts.Token);
             var carrier = cr.Message.Value; // TODO: try catch
+            //_logger.Debug("{Key}", cr.Key);
             _action.Invoke(JsonSerializer.Deserialize<T>(carrier.Data)!);
         }
         consumer.Close();
@@ -52,16 +54,16 @@ internal class ConsumerHandler<T>
 }
 
 
-internal class DishConsumerHandler : ConsumerHandler<Dish>
+internal class DishConsumerHandler : ConsumerHandler<DishPlaced>
 {
-    public DishConsumerHandler(string topic, Action<Dish> handle, ILogger logger) : base(topic, handle, logger)
+    public DishConsumerHandler(string topic, Action<DishPlaced> handle, ILogger logger, string groupId) : base(topic, handle, logger, groupId)
     {
     }
 
     public void Consume(CancellationTokenSource cts)
     {
         using var schemaRegistry = new CachedSchemaRegistryClient(_schemaRegistryConfig);
-        using var consumer = new ConsumerBuilder<Null, Dish>(_consumerConfig).SetValueDeserializer(new AvroDeserializer<Dish>(schemaRegistry, _serialiserConfig).AsSyncOverAsync()).Build();
+        using var consumer = new ConsumerBuilder<Null, DishPlaced>(_consumerConfig).SetValueDeserializer(new AvroDeserializer<DishPlaced>(schemaRegistry, _serialiserConfig).AsSyncOverAsync()).Build();
         consumer.Subscribe(_topic);
         while (true)
         {
