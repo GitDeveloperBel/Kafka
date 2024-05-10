@@ -7,7 +7,6 @@ using Shared;
 //IConsumer<string, int> consumer = null!;
 
 var logger = SeriloggerService.GenerateLogger();
-AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 
 
 //Console.WriteLine("Hello, World!");
@@ -33,16 +32,26 @@ AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 //    }
 //    consumer.Close();
 //}
+List<IShutdown> services = [];
 
 
 
-void CurrentDomain_ProcessExit(object? sender, EventArgs e)
+CancellationTokenSource cts = new();
+
+Console.CancelKeyPress += (_, e) =>
 {
-    //consumer?.Close();
-}
+    e.Cancel = true;
+    cts.Cancel();
+    Shutdown();
+};
+
+AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+
+
 //seems like if a consumer is not closed, the Kafka broker will attempt to contact it? for a minute, before discarding it. If starting a new consumer before then, Kafka will not transmit message until to then.
 
-var groupId = Guid.NewGuid().ToString();
+var groupId = "Shared";
 object lockObject = new();
 int eggs = 5;
 int breads = 31;
@@ -52,46 +61,59 @@ Thread t1 = new(ThreadStarter1);
 Thread t2 = new(ThreadStarter2);
 Thread t3 = new(ThreadStarter3);
 Thread t4 = new(ThreadStarter4);
+Thread t5 = new(ThreadStarter5);
 t1.Start();
 t2.Start();
 t3.Start();
 t4.Start();
+t5.Start();
 
 while (true)
-    Thread.Sleep(TimeSpan.FromHours(4));
+    Thread.Sleep(TimeSpan.FromMinutes(1));
 
 void ThreadStarter1()
 {
-    var consumeHandler = new ConsumerHandler<OrderPlaced>(topic, Handler1, logger, groupId);
-    consumeHandler.ConsumeCarrier(new CancellationTokenSource());
+    var consumeHandler = new ConsumerHandler<OrderPlaced>(topic, Handler1, logger, groupId, "client1");
+    services.Add(consumeHandler);
+    consumeHandler.ConsumeCarrier(cts);
 }
 
 void ThreadStarter2()
 {
-    var consumeHandler = new ConsumerHandler<OrderPlaced>(topic, Handler2, logger, groupId);
-    consumeHandler.ConsumeCarrier(new CancellationTokenSource());
+    var consumeHandler = new ConsumerHandler<OrderPlaced>(topic, Handler2, logger, groupId, "client2");
+    services.Add(consumeHandler);
+    consumeHandler.ConsumeCarrier(cts);
 }
 
 void ThreadStarter3()
 {
-    var consumerHandler = new DishConsumerHandler(Topics.TOPIC_DISH, Handler3, logger, Guid.NewGuid().ToString());
-    consumerHandler.Consume(new CancellationTokenSource());
+    var consumerHandler = new DishConsumerHandler(Topics.TOPIC_DISH, Handler3, logger, "Single 1", "client3");
+    services.Add(consumerHandler);
+    consumerHandler.Consume(cts);
 }
 
 void ThreadStarter4()
 {
-    var consumeHandler = new ConsumerHandler<OrderPlaced>(topic, Handler4, logger, Guid.NewGuid().ToString());
-    consumeHandler.ConsumeCarrier(new CancellationTokenSource());
+    var consumeHandler = new ConsumerHandler<OrderPlaced>(topic, Handler4, logger, "Single 2", "client4");
+    services.Add(consumeHandler);
+    consumeHandler.ConsumeCarrier(cts);
+}
+
+void ThreadStarter5()
+{
+    var consumeHandler = new ConsumerHandler<OrderPlaced>(topic, Handler5, logger, groupId, "client5");
+    services.Add(consumeHandler);
+    consumeHandler.ConsumeCarrier(cts);
 }
 
 void Handler1(OrderPlaced order)
 {
-    logger.Information("Shared groupId Consumer 1: Placed order {@order} saved to database", order);
+    logger.Information("Shared groupId {Consumer}: Order", "Consumer 1");
 }
 
 void Handler2(OrderPlaced order)
 {
-    logger.Information("Shared groupId Consumer 2: Something different to do with {Order} for {Customer}", order.Id, order.CustomerId);
+    logger.Information("Shared groupId {Consumer}: Order", "Consumer 2");
 }
 
 void Handler3(DishPlaced dish)
@@ -114,5 +136,34 @@ void Handler3(DishPlaced dish)
 }
 void Handler4(OrderPlaced order)
 {
-    logger.Information("Own groupId: {Order} for {Customer}", order.Id, order.CustomerId);
+    logger.Information("Own groupId: {@Order} for {Customer}", order, order.CustomerId);
+}
+
+void Handler5(OrderPlaced order)
+{
+    logger.Information("Shared groupId {Consumer}: Order", "Consumer 3");
+}
+
+
+void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+{
+    cts.Cancel();
+    Shutdown();
+}
+
+void CurrentDomain_ProcessExit(object? sender, EventArgs e)
+{
+    cts.Cancel();
+    Shutdown();
+}
+
+void Shutdown()
+{
+    foreach (var service in services)
+        service.Shutdown();
+}
+
+public interface IShutdown
+{
+    public void Shutdown();
 }

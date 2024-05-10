@@ -1,4 +1,5 @@
 ﻿using Confluent.Kafka;
+using Confluent.Kafka.SyncOverAsync;
 using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 using Serilog;
@@ -26,23 +27,23 @@ internal class ProducerHandler<T>
         {
             BootstrapServers = "localhost:9092",
         };
-        _serialiserConfig = new();
+        _serialiserConfig = new() { };
         _logger = logger;
     }
 
-    public async Task ProduceCarrierAsync(T @event, string key, TopicPartition partition)
+    public void ProduceCarrierAsync(T @event, string key, TopicPartition partition)
     {
         Stopwatch sw = Stopwatch.StartNew();
         using var schemaRegistry = new CachedSchemaRegistryClient(_schemaRegistryConfig);
-        using var producer = new ProducerBuilder<string, Carrier>(_producerConfig).SetValueSerializer(new AvroSerializer<Carrier>(schemaRegistry, _serialiserConfig)).Build();
+        using var producer = new ProducerBuilder<string, Carrier>(_producerConfig).SetValueSerializer(new AvroSerializer<Carrier>(schemaRegistry, _serialiserConfig).AsSyncOverAsync()).Build();
         var carrier = Carrier.Create(@event);
         var message = new Message<string, Carrier>
         {
             Key = key,
             Value = carrier
         };
-        await producer.ProduceAsync(partition, message);
-        producer.Flush(TimeSpan.FromSeconds(2));
+        producer.Produce(partition, message, x => { Console.WriteLine(x.Error.IsError); });
+        producer.Flush(TimeSpan.FromSeconds(10));
         sw.Stop();
         _logger.Information("Message {@message} transmitted to topic {Topic} key {Key}, took {Time}", message, _topic, key, sw.Elapsed);
     }

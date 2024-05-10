@@ -44,13 +44,14 @@ using Shared;
 //    Console.WriteLine(e.Message);
 //}
 
-
 var logger = SeriloggerService.GenerateLogger();
 
 Thread t1 = new(ThreadStarter1);
 Thread t2 = new(ThreadStarter2);
+Thread t3 = new(ThreadStarter3);
 t1.Start();
 t2.Start();
+t3.Start();
 
 //#if DEBUGPART
 //Thread t3 = new(ThreadStarter1);
@@ -68,8 +69,8 @@ void ThreadStarter1()
         string key = i % 2 == 0 ? "key1" : "key2";
         var partId = i % 2;
         var tp = new TopicPartition(topic, new(partId));
-        var t = producerHandler.ProduceCarrierAsync(order, key, tp);
-        t.Wait();
+        producerHandler.ProduceCarrierAsync(order, key, tp);
+        //t.Wait();
         logger.Debug("Order {@Order} transmitted", order);
     }
 }
@@ -93,6 +94,24 @@ void ThreadStarter2()
         var t = producerHandler.ProduceAsync(dish);
         t.Wait();
         logger.Debug("Dish {@Dish} transmitted", dish);
+    }
+}
+
+void ThreadStarter3()
+{
+    var topic = Topics.TOPIC_ORDER;
+    var producerHandler = new ProducerHandler<OrderPlaced>(topic, logger);
+    for (int i = 0; i < 10000; i++)
+    {
+        Thread.Sleep(TimeSpan.FromSeconds(6));
+        var order = GenerateRandomOrder();
+        
+        string key = "key3";
+        var partId = 2;
+        var tp = new TopicPartition(topic, new(partId));
+        producerHandler.ProduceCarrierAsync(order, key, tp);
+        //t.Wait();
+        logger.Debug("Order {@Order} delayed transmitted", order);
     }
 }
 
