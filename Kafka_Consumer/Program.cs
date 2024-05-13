@@ -126,11 +126,11 @@ void Handler3(DishPlaced dish)
     logger.Information("Dish part of ordered menu requires {Breads} and {Eggs}", dish.AmountOfBread, dish.AmountOfEggs);
     if(eggs < 0)
     {
-        logger.Warning("Missing {MissingEgg} eggs", eggs);
+        //logger.Warning("Missing {MissingEgg} eggs", eggs);
     }
     if (breads < 0)
     {
-        logger.Warning("Missing {MissingBreads} breads", breads);
+        //logger.Warning("Missing {MissingBreads} breads", breads);
     }
 
 }
